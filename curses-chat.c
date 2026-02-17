@@ -1,5 +1,6 @@
-//./chat_client <server_ip> <port>
-//-lncurses
+/*
+ * Ultros was here in 2026
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -367,4 +368,5 @@ int main(int argc, char *argv[]) {
     return 0;
     
 }
+
 
