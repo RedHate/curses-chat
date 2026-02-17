@@ -1,5 +1,5 @@
 Server:
-chat-x86_64 <port>
+   chat-x86_64 <port>
 
 Client:
-chat-x86_64 <server_ip> <port>
+   chat-x86_64 <server_ip> <port>
