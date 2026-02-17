@@ -1,3 +1,5 @@
-Server: %s <port>
+Server:
+chat-x86_64 <port>
 
-Client: %s <server_ip> <port>
+Client:
+chat-x86_64 <server_ip> <port>
