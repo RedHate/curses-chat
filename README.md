@@ -1,5 +1,3 @@
-Usage:
+Server: %s <port>
 
-  Server: %s <port>
-  
-  Client: %s <server_ip> <port>
+Client: %s <server_ip> <port>
