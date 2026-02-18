@@ -31,6 +31,8 @@ int sockfd;
 // Should suffice with a random key
 void xor4x(char *buffer, int size) {
 	
+	int i;
+	
 	// XOR keys
 	unsigned char keys[4][XOR_KEY_LEN] = { 
 		{ 0xec, 0x1d, 0x53, 0xdf, 0xc3, 0x23, 0x28, 0xfa, 0xe0, 0xfe, 0x95, 0xc9, 0x51, 0x2a, 0x65, 0x63, 0xe6, 0xb4, 0xf9, 0x3a },
@@ -46,7 +48,7 @@ void xor4x(char *buffer, int size) {
 		// XOR forward / backward
 		if(direction == XOR_FORWARD) {
 			// Lazy XOR
-			for (int i = 0; i < size; i++) {
+			for (i = 0; i < size; i++) {
 				// XOR shift the data according to the key and its relative read position
 				buffer[i] = (unsigned char)((unsigned char)buffer[i] ^ (unsigned char)key[keypos]);
 				// Move the key position
@@ -57,7 +59,7 @@ void xor4x(char *buffer, int size) {
 		}
 		else if(direction == XOR_BACKWARD) {
 			// Lazy XOR
-			for (int i = size; i > 0; i--) {
+			for (i = size; i > 0; i--) {
 				// XOR shift the data according to the key and its relative read position
 				buffer[i] = (unsigned char)((unsigned char)buffer[i] ^ (unsigned char)key[keypos]);
 				// Move the key position
@@ -71,7 +73,7 @@ void xor4x(char *buffer, int size) {
 	// XOR 4x
 	int direction = 0;
 	// loop through keys
-	for(int i = 0; i < 3; i++) {
+	for(i = 0; i < 3; i++) {
 		// odd
 		if(i & 1)
 			direction = XOR_BACKWARD;
@@ -315,9 +317,10 @@ int server(int argc, char *argv[]) {
             perror("select");
             exit(1);
         }
-
+		
+		int i;
 		// Loop through all the ports to from 0 - fdmax
-        for (int i = 0; i <= fdmax; i++) {
+        for (i = 0; i <= fdmax; i++) {
 			
 			// Is someone attempting to connect?
             if (FD_ISSET(i, &read_fds)) {
@@ -348,7 +351,8 @@ int server(int argc, char *argv[]) {
                         printf("Client disconnected\n");
                     } 
                     else {
-                        for (int j = 0; j <= fdmax; j++) {
+						int j;
+                        for (j = 0; j <= fdmax; j++) {
                             if (FD_ISSET(j, &master) && j != listener && j != i) {
                                 send(j, buffer, nbytes, 0);
                             }
@@ -367,7 +371,7 @@ int main(int argc, char *argv[]) {
 	
 	// Print usage
     if (argc < 2) {
-		printf("Server: %s <port>\n", argv[0]);
+		printf("Server: %s <listener_port>\n", argv[0]);
         printf("Client: %s <server_ip> <port>\n", argv[0]);
         return 1;
     }
