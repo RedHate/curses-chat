@@ -235,7 +235,7 @@ int client(int argc, char *argv[]) {
 	wgetnstr(input_win, username, MAX_NAME - 1);
 	
 	// Terminate the name just incase it's not terminated
-	chatData.username[MAX_NAME-1]='\0';
+	username[MAX_NAME-1]='\0';
 
 	// Erase and refresh the chat window
 	werase(chat_win);
