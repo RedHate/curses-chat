@@ -76,11 +76,11 @@ void xor4x(char *buffer, int size) {
 		if(i & 1)
 			direction = XOR_BACKWARD;
 		// even
-		if(!i & 1) // should this be 0? hrm, seems to work.. lol fawk o/ from the non robotic side of me
+		if(!i & 1)
 			direction = XOR_FORWARD;
 		
 		//xor it in a direction
-		xor_directional(buffer, size, &keys[i], direction);
+		xor_directional(buffer, size, keys[i], direction);
 	}
 	
 }
@@ -100,7 +100,7 @@ void *receive_messages(void *arg) {
             break;
         }
 
-		xor4x(&buffer, bytes);
+		xor4x(buffer, bytes);
 
 		// Zero the last byte
         buffer[bytes] = '\0';
@@ -187,7 +187,7 @@ int client(int argc, char *argv[]) {
     char message[MAX_MSG];
    
     // Create a buffer for user name
-    char username[MAX_MSG];
+    char username[16];
 
 	// erase chat window and print message then refresh
 	werase(chat_win);
@@ -229,14 +229,14 @@ int client(int argc, char *argv[]) {
 
 		else if(strlen(message) > 0) {
 			// Combine username and chat message into one
-			char combined_buffer[MAX_MSG];
-			sprintf(combined_buffer, "%s: %s", username, message);
+			char combined_buffer[MAX_MSG+16];
+			sprintf(combined_buffer, "%s %s", username, message);
 			
 			// Print the message to- and refresh the chat window
 			wprintw(chat_win, "%s\n", combined_buffer);
 			wrefresh(chat_win);
 			
-			xor4x(&combined_buffer, strlen(username)+strlen(message)+2);
+			xor4x(combined_buffer, strlen(username)+strlen(message)+2);
 			
 			// Send message to socket
 			send(sockfd, combined_buffer, strlen(username)+strlen(message)+2, 0);
