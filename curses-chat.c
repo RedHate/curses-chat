@@ -85,12 +85,11 @@ int xor4x(void *buffer, unsigned int size) {
 	// loop through keys
 	for(int i = 0; i < 3; i++) {
 		// evens, i know this isnt the proper way i should use %)
-		if(i == 0 || 2)
+		if(i & 1)
 			direction = XOR_FORWARD;
 		// odds, i know this isnt the proper way i should use %)
-		if(i == 1 || 3)
+		if(!(i & 1))
 			direction = XOR_BACKWARD;
-		
 		//xor it in a direction
 		xor_directional(buffer, size, keys[i], direction);
 	}
@@ -119,7 +118,8 @@ void *receive_messages(void *arg) {
 		chat_data *data = (chat_data*)buffer;
         
 		// Print the message to- and refresh the chat window
-		wprintw(chat_win, "recv) %s: %s\n", data->username, data->message);
+		wprintw(chat_win, " recv) %s: %s\n", data->username, data->message);
+		box(chat_win, 0, 0);
 		wrefresh(chat_win);
         
     }
@@ -135,6 +135,7 @@ void init_ncurses() {
     // Init ncurses
     initscr();
     cbreak();
+    curs_set(0);
     //noecho();
     keypad(stdscr, TRUE);
 	
@@ -146,10 +147,24 @@ void init_ncurses() {
     chat_win = newwin(height - 3, width, 0, 0);
     input_win = newwin(3, width, height - 3, 0);
 
+	if(has_colors() != FALSE){
+		start_color();
+		init_pair(1, COLOR_CYAN, COLOR_BLACK);
+		init_pair(2, COLOR_YELLOW, COLOR_BLACK);
+		init_pair(3, COLOR_MAGENTA, COLOR_BLACK);
+		init_pair(4, COLOR_RED, COLOR_BLACK);
+	}
+	
 	// Set scroll property to true
     scrollok(chat_win, TRUE);
     // Create a box around the input window
     box(input_win, 0, 0);
+    
+    // Create a box around the input window
+    box(chat_win, 0, 0);
+	
+	//wbkgd(chat_win, COLOR_PAIR(1));
+	wbkgd(input_win, COLOR_PAIR(2));
 
 	// Refresh both chat and input windows
     wrefresh(chat_win);
@@ -198,13 +213,14 @@ int client(int argc, char *argv[]) {
 
 	// erase chat window and print message then refresh
 	werase(chat_win);
-	wprintw(chat_win, "Insert your user name\n");
+	box(chat_win, 0, 0);
 	wrefresh(chat_win);
 	
 	// Erase the input window, replot the input window and refresh
 	werase(input_win);
 	box(input_win, 0, 0);
 	mvwprintw(input_win, 1, 1, "> ");
+	wprintw(input_win, "Insert your user name: ");
 	wrefresh(input_win);
 
 	// Get the input from keyboard
@@ -216,6 +232,8 @@ int client(int argc, char *argv[]) {
 
 	// Erase and refresh the chat window
 	werase(chat_win);
+	box(chat_win, 0, 0);
+	wprintw(chat_win, "\n");
 	wrefresh(chat_win);
 
 	// Main loop
@@ -229,7 +247,9 @@ int client(int argc, char *argv[]) {
         box(input_win, 0, 0);
         mvwprintw(input_win, 1, 1, "> ");
         wrefresh(input_win);
-
+		box(chat_win, 0, 0);
+		wrefresh(chat_win);
+		
 		// Get the input from keyboard
         wgetnstr(input_win, chatData.message, MAX_MSG - 1);
         
@@ -245,7 +265,7 @@ int client(int argc, char *argv[]) {
 		if(strlen(chatData.message) > 0) {
 			
 			// Print the message to- and refresh the chat window
-			wprintw(chat_win, "send) %s: %s\n", chatData.username, chatData.message);
+			wprintw(chat_win, " send) %s: %s\n", chatData.username, chatData.message);
 			wrefresh(chat_win);
 			
 			// xor it
