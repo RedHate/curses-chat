@@ -76,7 +76,7 @@ void xor4x(char *buffer, int size) {
 		if(i & 1)
 			direction = XOR_BACKWARD;
 		// even
-		if(i & 2) // should this be 0? hrm, seems to work.. lol fawk o/ from the non robotic side of me
+		if(!i & 1) // should this be 0? hrm, seems to work.. lol fawk o/ from the non robotic side of me
 			direction = XOR_FORWARD;
 		
 		//xor it in a direction
