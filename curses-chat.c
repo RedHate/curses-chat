@@ -6,13 +6,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <arpa/inet.h>
-#include <sys/socket.h>
 #include <pthread.h>
 #include <ncurses.h>
+#include <time.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <sys/select.h>
+
 
 #define MAX_MSG 512
 #define MAX_NAME 16
@@ -36,7 +36,7 @@ typedef struct chat_data {
 chat_data chatData;
 
 // Should suffice with a random key
-int xor4x(void *buffer, unsigned int size) {
+int xor4x(unsigned char *buffer, unsigned int size) {
 	
 	// XOR related definitions
 	#define XOR_KEY_LEN  20
@@ -56,7 +56,7 @@ int xor4x(void *buffer, unsigned int size) {
 		// Used for xor position
 		int keypos = 0;
 		// XOR forward / backward
-		if(direction == XOR_FORWARD) {
+		if (direction == XOR_FORWARD) {
 			// Lazy XOR
 			for (unsigned int i = 0; i < size; i++) {
 				// XOR shift the data according to the key and its relative read position
@@ -64,10 +64,10 @@ int xor4x(void *buffer, unsigned int size) {
 				// Move the key position
 				keypos++;
 				// If the key position is greater than the key length reset it
-				if(keypos == XOR_KEY_LEN) keypos = 0;
+				if (keypos == XOR_KEY_LEN) keypos = 0;
 			}
 		}
-		else if(direction == XOR_BACKWARD) {
+		else if (direction == XOR_BACKWARD) {
 			// Lazy XOR
 			for (unsigned int i = size; i > 0; i--) {
 				// XOR shift the data according to the key and its relative read position
@@ -75,20 +75,23 @@ int xor4x(void *buffer, unsigned int size) {
 				// Move the key position
 				keypos++;
 				// If the key position is greater than the key length reset it
-				if(keypos == XOR_KEY_LEN) keypos = 0;
+				if (keypos == XOR_KEY_LEN) keypos = 0;
 			}
 		}
 	}
 	
-	// XOR 4x
+	
+	// Set the direction to 0
 	int direction = 0;
+	
 	// loop through keys
-	for(int i = 0; i < 3; i++) {
+	int i;
+	for (i = 0; i < 3; i++) {
 		// evens, i know this isnt the proper way i should use %)
-		if(i & 1)
+		if (i & 1)
 			direction = XOR_FORWARD;
 		// odds, i know this isnt the proper way i should use %)
-		if(!(i & 1))
+		if (!(i & 1))
 			direction = XOR_BACKWARD;
 		//xor it in a direction
 		xor_directional(buffer, size, keys[i], direction);
@@ -111,14 +114,18 @@ void *receive_messages(void *arg) {
             break;
         }
 		
-		// xor it
+		// XOR it
 		xor4x((unsigned char*)&buffer, MAX_MSG+MAX_NAME);
 		
-		// cast it with a pointer
+		// Cast it with a pointer
 		chat_data *data = (chat_data*)buffer;
         
+        // Get the Time
+        time_t rawtime;
+        time(&rawtime);
+        
 		// Print the message to- and refresh the chat window
-		wprintw(chat_win, " recv) %s: %s\n", data->username, data->message);
+		wprintw(chat_win, " recv) [%.24s] <%s>: %s\n", ctime(&rawtime), data->username, data->message);
 		box(chat_win, 0, 0);
 		wrefresh(chat_win);
         
@@ -144,15 +151,15 @@ void init_ncurses() {
     getmaxyx(stdscr, height, width);
 
 	// Window context creation
-    chat_win = newwin(height - 3, width, 0, 0);
+    chat_win  = newwin(height - 3, width, 0, 0);
     input_win = newwin(3, width, height - 3, 0);
 
-	if(has_colors() != FALSE){
+	if (has_colors() != FALSE) {
 		start_color();
-		init_pair(1, COLOR_CYAN, COLOR_BLACK);
-		init_pair(2, COLOR_YELLOW, COLOR_BLACK);
+		init_pair(1, COLOR_CYAN,    COLOR_BLACK);
+		init_pair(2, COLOR_YELLOW,  COLOR_BLACK);
 		init_pair(3, COLOR_MAGENTA, COLOR_BLACK);
-		init_pair(4, COLOR_RED, COLOR_BLACK);
+		init_pair(4, COLOR_RED,     COLOR_BLACK);
 	}
 	
 	// Set scroll property to true
@@ -255,24 +262,45 @@ int client(int argc, char *argv[]) {
         
         //terminate the message data so it never overflows
 		chatData.message[MAX_MSG-1] = '\0';
-
+		
 		// Check for quit message
         if (strcmp(chatData.message, "/quit") == 0) {
             break;
         }
-		
-		// If the message is greater than 0
-		if(strlen(chatData.message) > 0) {
-			
-			// Print the message to- and refresh the chat window
-			wprintw(chat_win, " send) %s: %s\n", chatData.username, chatData.message);
+        // Check for clear command
+        else if (strcmp(chatData.message, "/clear") == 0) {
+			werase(chat_win);
+			box(chat_win, 0, 0);
+			wprintw(chat_win, "\n");
 			wrefresh(chat_win);
-			
-			// xor it
-			xor4x((unsigned char*)&chatData, MAX_MSG+MAX_NAME);
-			
-			// Send message to socket
-			send(sockfd, (const void*)&chatData, sizeof(chat_data), 0);
+		}
+		// Check for quit message
+        else if (strcmp(chatData.message, "/nick") == 0) {
+			mvwprintw(input_win, 1, 1, "Insert new nickname: ");
+			wrefresh(input_win);
+			wgetnstr(input_win, username, MAX_NAME - 1);
+			// Terminate the name just incase it's not terminated
+			chatData.username[MAX_NAME-1]='\0';
+        }
+        // No commands? send the input
+		else {
+			// If the message is greater than 0
+			if (strlen(chatData.message) > 0) {
+				
+				// Get the Time
+				time_t rawtime;
+				time(&rawtime);
+				
+				// Print the message to- and refresh the chat window
+				wprintw(chat_win, " send) [%.24s] <%s>: %s\n", ctime(&rawtime), chatData.username, chatData.message);
+				wrefresh(chat_win);
+				
+				// xor it
+				xor4x((unsigned char*)&chatData, MAX_MSG+MAX_NAME);
+				
+				// Send message to socket
+				send(sockfd, (const void*)&chatData, sizeof(chat_data), 0);
+			}
 		}
     }
 
