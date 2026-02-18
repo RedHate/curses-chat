@@ -15,11 +15,7 @@
 #include <sys/select.h>
 
 #define MAX_MSG 512
-
-// XOR related definitions
-#define XOR_KEY_LEN  20
-#define XOR_FORWARD  0
-#define XOR_BACKWARD 1
+#define MAX_NAME 16
 
 // Window ctx handles
 WINDOW *chat_win, 
@@ -28,10 +24,24 @@ WINDOW *chat_win,
 // Socket var
 int sockfd;
 
+// chat data type declaration
+typedef struct chat_data {
+	// Create a message buffer for input
+    char message[MAX_MSG];
+    // Create a buffer for user name
+    char username[MAX_NAME];
+}chat_data;
+
+// chat data var declaration
+chat_data chatData;
+
 // Should suffice with a random key
-void xor4x(char *buffer, int size) {
+int xor4x(void *buffer, unsigned int size) {
 	
-	int i;
+	// XOR related definitions
+	#define XOR_KEY_LEN  20
+	#define XOR_FORWARD  0
+	#define XOR_BACKWARD 1
 	
 	// XOR keys
 	unsigned char keys[4][XOR_KEY_LEN] = { 
@@ -42,15 +52,15 @@ void xor4x(char *buffer, int size) {
 	};
 	
 	// Directional XOR fnc (doesn't need to be global, even if that's how you think it should be done. i scope my code.)
-	void xor_directional(char *buffer, int size, unsigned char *key, int direction) {
+	void xor_directional(unsigned char *buffer, unsigned int size, unsigned char *key, int direction) {
 		// Used for xor position
 		int keypos = 0;
 		// XOR forward / backward
 		if(direction == XOR_FORWARD) {
 			// Lazy XOR
-			for (i = 0; i < size; i++) {
+			for (unsigned int i = 0; i < size; i++) {
 				// XOR shift the data according to the key and its relative read position
-				buffer[i] = (unsigned char)((unsigned char)buffer[i] ^ (unsigned char)key[keypos]);
+				buffer[i] = (unsigned char)((unsigned char)key[keypos] ^ (unsigned char)buffer[i]);
 				// Move the key position
 				keypos++;
 				// If the key position is greater than the key length reset it
@@ -59,9 +69,9 @@ void xor4x(char *buffer, int size) {
 		}
 		else if(direction == XOR_BACKWARD) {
 			// Lazy XOR
-			for (i = size; i > 0; i--) {
+			for (unsigned int i = size; i > 0; i--) {
 				// XOR shift the data according to the key and its relative read position
-				buffer[i] = (unsigned char)((unsigned char)buffer[i] ^ (unsigned char)key[keypos]);
+				buffer[i] = (unsigned char)((unsigned char)key[keypos] ^ (unsigned char)buffer[i]);
 				// Move the key position
 				keypos++;
 				// If the key position is greater than the key length reset it
@@ -73,13 +83,13 @@ void xor4x(char *buffer, int size) {
 	// XOR 4x
 	int direction = 0;
 	// loop through keys
-	for(i = 0; i < 3; i++) {
-		// odd
-		if(i & 1)
-			direction = XOR_BACKWARD;
-		// even
-		if(!i & 1)
+	for(int i = 0; i < 3; i++) {
+		// evens, i know this isnt the proper way i should use %)
+		if(i == 0 || 2)
 			direction = XOR_FORWARD;
+		// odds, i know this isnt the proper way i should use %)
+		if(i == 1 || 3)
+			direction = XOR_BACKWARD;
 		
 		//xor it in a direction
 		xor_directional(buffer, size, keys[i], direction);
@@ -91,25 +101,26 @@ void xor4x(char *buffer, int size) {
 void *receive_messages(void *arg) {
     
     // Local vars
-    char buffer[MAX_MSG];
+    char buffer[sizeof(chat_data)];
 
 	// While running...
     while (1) {
         
         // Get the size of the received bytes from socket
-        int bytes = recv(sockfd, buffer, sizeof(buffer) - 1, 0);
+        int bytes = recv(sockfd, buffer, sizeof(chat_data), 0);
         if (bytes <= 0) {
             break;
         }
-
-		xor4x(buffer, bytes);
-
-		// Zero the last byte
-        buffer[bytes] = '\0';
-
-		// print and refresh the chat window
-        wprintw(chat_win, "%s\n", buffer);
-        wrefresh(chat_win);
+		
+		// xor it
+		xor4x((unsigned char*)&buffer, MAX_MSG+MAX_NAME);
+		
+		// cast it with a pointer
+		chat_data *data = (chat_data*)buffer;
+        
+		// Print the message to- and refresh the chat window
+		wprintw(chat_win, "recv) %s: %s\n", data->username, data->message);
+		wrefresh(chat_win);
         
     }
 
@@ -185,12 +196,6 @@ int client(int argc, char *argv[]) {
     pthread_t recv_thread;
     pthread_create(&recv_thread, NULL, receive_messages, NULL);
 
-	// Create a message buffer for input
-    char message[MAX_MSG];
-   
-    // Create a buffer for user name
-    char username[16];
-
 	// erase chat window and print message then refresh
 	werase(chat_win);
 	wprintw(chat_win, "Insert your user name\n");
@@ -203,10 +208,11 @@ int client(int argc, char *argv[]) {
 	wrefresh(input_win);
 
 	// Get the input from keyboard
-	wgetnstr(input_win, username, MAX_MSG - 1);
-	if(username[0] == 0){
-		return 0;
-	}
+	char username[MAX_NAME];
+	wgetnstr(input_win, username, MAX_NAME - 1);
+	
+	// Terminate the name just incase it's not terminated
+	chatData.username[MAX_NAME-1]='\0';
 
 	// Erase and refresh the chat window
 	werase(chat_win);
@@ -215,6 +221,9 @@ int client(int argc, char *argv[]) {
 	// Main loop
     while (1) {
 		
+		// Place the username into the structured data block
+		sprintf(chatData.username, "%s", username);
+		
 		// Erase the input window, replot the input window and refresh
         werase(input_win);
         box(input_win, 0, 0);
@@ -222,26 +231,28 @@ int client(int argc, char *argv[]) {
         wrefresh(input_win);
 
 		// Get the input from keyboard
-        wgetnstr(input_win, message, MAX_MSG - 1);
+        wgetnstr(input_win, chatData.message, MAX_MSG - 1);
+        
+        //terminate the message data so it never overflows
+		chatData.message[MAX_MSG-1] = '\0';
 
 		// Check for quit message
-        if (strcmp(message, "/quit") == 0) {
+        if (strcmp(chatData.message, "/quit") == 0) {
             break;
         }
-
-		else if(strlen(message) > 0) {
-			// Combine username and chat message into one
-			char combined_buffer[MAX_MSG+16];
-			sprintf(combined_buffer, "%s %s", username, message);
+		
+		// If the message is greater than 0
+		if(strlen(chatData.message) > 0) {
 			
 			// Print the message to- and refresh the chat window
-			wprintw(chat_win, "%s\n", combined_buffer);
+			wprintw(chat_win, "send) %s: %s\n", chatData.username, chatData.message);
 			wrefresh(chat_win);
 			
-			xor4x(combined_buffer, strlen(username)+strlen(message)+2);
+			// xor it
+			xor4x((unsigned char*)&chatData, MAX_MSG+MAX_NAME);
 			
 			// Send message to socket
-			send(sockfd, combined_buffer, strlen(username)+strlen(message)+2, 0);
+			send(sockfd, (const void*)&chatData, sizeof(chat_data), 0);
 		}
     }
 
@@ -342,7 +353,7 @@ int server(int argc, char *argv[]) {
                 } 
                 else {
 					
-                    char buffer[MAX_MSG];
+                    char buffer[sizeof(chat_data)];
                     int nbytes = recv(i, buffer, sizeof(buffer), 0);
 
                     if (nbytes <= 0) {
