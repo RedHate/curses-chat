@@ -5,7 +5,7 @@
 TARGET      =  chat
 OBJ         =  curses-chat.o
 
-LDLIBS		=  -lncurses  -lpthread  
+LDLIBS		=  -lz -lncurses -lpthread  
 
 PREFIX      =  x86_64-linux-gnu
 #PREFIX		=  arm-linux-gnueabihf

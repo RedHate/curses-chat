@@ -14,7 +14,6 @@
 #include <sys/socket.h>
 #include <sys/select.h>
 
-#define MAX_CLIENTS  FD_SETSIZE
 #define MAX_MSG 512
 
 // XOR related definitions
@@ -29,39 +28,61 @@ WINDOW *chat_win,
 // Socket var
 int sockfd;
 
-// XOR keys
-unsigned char key1[XOR_KEY_LEN] = { 0xec, 0x1d, 0x53, 0xdf, 0xc3, 0x23, 0x28, 0xfa, 0xe0, 0xfe, 0x95, 0xc9, 0x51, 0x2a, 0x65, 0x63, 0xe6, 0xb4, 0xf9, 0x3a };
-unsigned char key2[XOR_KEY_LEN] = { 0x67, 0x10, 0xca, 0x9c, 0x54, 0x66, 0x13, 0xb8, 0x50, 0x67, 0x05, 0x99, 0xa0, 0xaa, 0x53, 0x16, 0xec, 0x5e, 0xcc, 0x3c };
-unsigned char key3[XOR_KEY_LEN] = { 0x04, 0xf0, 0x24, 0x97, 0x37, 0x23, 0x05, 0x7b, 0x06, 0xe7, 0x0d, 0x48, 0xf2, 0x41, 0x6b, 0xca, 0x55, 0xad, 0x9f, 0xf6 };
-unsigned char key4[XOR_KEY_LEN] = { 0x87, 0xe9, 0x0a, 0x8c, 0xae, 0x4e, 0x5c, 0xb3, 0xa9, 0x25, 0x7e, 0xa5, 0x34, 0x36, 0x91, 0xf3, 0xdd, 0x1e, 0x1c, 0xc8 };
-
-// Lazy XOR
-void lazy_xor(char *buffer, int size, unsigned char *key, int direction) {
-   	// Used for xor position
-	int keypos = 0;
-	// XOR forward / backward
-	if(direction == XOR_FORWARD) {
-		// Lazy XOR
-		for (int i = 0; i < size; i++) {
-			// XOR shift the data according to the key and its relative read position
-			buffer[i] = (unsigned char)((unsigned char)key[keypos] ^ (unsigned char)buffer[i]);
-			// Move the key position
-			keypos++;
-			// If the key position is greater than the key length reset it
-			if(keypos == XOR_KEY_LEN) keypos = 0;
+// Should suffice with a random key
+void xor4x(char *buffer, int size) {
+	
+	// XOR keys
+	unsigned char keys[4][XOR_KEY_LEN] = { 
+		{ 0xec, 0x1d, 0x53, 0xdf, 0xc3, 0x23, 0x28, 0xfa, 0xe0, 0xfe, 0x95, 0xc9, 0x51, 0x2a, 0x65, 0x63, 0xe6, 0xb4, 0xf9, 0x3a },
+		{ 0x67, 0x10, 0xca, 0x9c, 0x54, 0x66, 0x13, 0xb8, 0x50, 0x67, 0x05, 0x99, 0xa0, 0xaa, 0x53, 0x16, 0xec, 0x5e, 0xcc, 0x3c },
+		{ 0x04, 0xf0, 0x24, 0x97, 0x37, 0x23, 0x05, 0x7b, 0x06, 0xe7, 0x0d, 0x48, 0xf2, 0x41, 0x6b, 0xca, 0x55, 0xad, 0x9f, 0xf6 },
+		{ 0x87, 0xe9, 0x0a, 0x8c, 0xae, 0x4e, 0x5c, 0xb3, 0xa9, 0x25, 0x7e, 0xa5, 0x34, 0x36, 0x91, 0xf3, 0xdd, 0x1e, 0x1c, 0xc8 },
+	};
+	
+	// Directional XOR fnc (doesn't need to be global, even if that's how you think it should be done. i scope my code.)
+	void xor_directional(char *buffer, int size, unsigned char *key, int direction) {
+		// Used for xor position
+		int keypos = 0;
+		// XOR forward / backward
+		if(direction == XOR_FORWARD) {
+			// Lazy XOR
+			for (int i = 0; i < size; i++) {
+				// XOR shift the data according to the key and its relative read position
+				buffer[i] = (unsigned char)((unsigned char)buffer[i] ^ (unsigned char)key[keypos]);
+				// Move the key position
+				keypos++;
+				// If the key position is greater than the key length reset it
+				if(keypos == XOR_KEY_LEN) keypos = 0;
+			}
+		}
+		else if(direction == XOR_BACKWARD) {
+			// Lazy XOR
+			for (int i = size; i > 0; i--) {
+				// XOR shift the data according to the key and its relative read position
+				buffer[i] = (unsigned char)((unsigned char)buffer[i] ^ (unsigned char)key[keypos]);
+				// Move the key position
+				keypos++;
+				// If the key position is greater than the key length reset it
+				if(keypos == XOR_KEY_LEN) keypos = 0;
+			}
 		}
 	}
-	else if(direction == XOR_BACKWARD) {
-		// Lazy XOR
-		for (int i = size; i > 0; i--) {
-			// XOR shift the data according to the key and its relative read position
-			buffer[i] = (unsigned char)((unsigned char)key[keypos] ^ (unsigned char)buffer[i]);
-			// Move the key position
-			keypos++;
-			// If the key position is greater than the key length reset it
-			if(keypos == XOR_KEY_LEN) keypos = 0;
-		}
+	
+	// XOR 4x
+	int direction = 0;
+	// loop through keys
+	for(int i = 0; i < 3; i++) {
+		// odd
+		if(i & 1)
+			direction = XOR_BACKWARD;
+		// even
+		if(i & 2) // should this be 0? hrm, seems to work.. lol fawk o/ from the non robotic side of me
+			direction = XOR_FORWARD;
+		
+		//xor it in a direction
+		xor_directional(buffer, size, &keys[i], direction);
 	}
+	
 }
 
 // Thread to receive messages
@@ -79,11 +100,7 @@ void *receive_messages(void *arg) {
             break;
         }
 
-		// Some lazy XOR for fun!
-		lazy_xor(&buffer, bytes, key4, XOR_BACKWARD);
-		lazy_xor(&buffer, bytes, key3, XOR_FORWARD);
-		lazy_xor(&buffer, bytes, key2, XOR_BACKWARD);
-		lazy_xor(&buffer, bytes, key1, XOR_FORWARD);
+		xor4x(&buffer, bytes);
 
 		// Zero the last byte
         buffer[bytes] = '\0';
@@ -168,6 +185,7 @@ int client(int argc, char *argv[]) {
 
 	// Create a message buffer for input
     char message[MAX_MSG];
+   
     // Create a buffer for user name
     char username[MAX_MSG];
 
@@ -209,23 +227,20 @@ int client(int argc, char *argv[]) {
             break;
         }
 
-		// Combine username and chat message into one
-        char combined_buffer[MAX_MSG];
-        sprintf(combined_buffer, "%s: %s", username, message);
-        
-        // Print the message to- and refresh the chat window
-        wprintw(chat_win, "%s\n", combined_buffer);
-        wrefresh(chat_win);
-        
-		// Some lazy XOR for fun!
-		lazy_xor(&combined_buffer, strlen(username)+strlen(message)+2, key1, XOR_FORWARD);
-		lazy_xor(&combined_buffer, strlen(username)+strlen(message)+2, key2, XOR_BACKWARD);
-		lazy_xor(&combined_buffer, strlen(username)+strlen(message)+2, key3, XOR_FORWARD);
-		lazy_xor(&combined_buffer, strlen(username)+strlen(message)+2, key4, XOR_BACKWARD);
-        
-		// Send message to socket
-        send(sockfd, combined_buffer, strlen(username)+strlen(message)+2, 0);
-
+		else if(strlen(message) > 0) {
+			// Combine username and chat message into one
+			char combined_buffer[MAX_MSG];
+			sprintf(combined_buffer, "%s: %s", username, message);
+			
+			// Print the message to- and refresh the chat window
+			wprintw(chat_win, "%s\n", combined_buffer);
+			wrefresh(chat_win);
+			
+			xor4x(&combined_buffer, strlen(username)+strlen(message)+2);
+			
+			// Send message to socket
+			send(sockfd, combined_buffer, strlen(username)+strlen(message)+2, 0);
+		}
     }
 
 	// Terminate the ncurses windows
@@ -368,5 +383,4 @@ int main(int argc, char *argv[]) {
     return 0;
     
 }
-
 
