@@ -462,26 +462,6 @@ int server(int argc, char *argv[]) {
 // Main
 int main(int argc, char *argv[]) {
 	
-	/*
-	BLACK1		= "\033[1;30m"
-	BLACK2		= "\033[0;30m"
-	RED1		= "\033[1;31m"
-	RED2		= "\033[0;31m"
-	GREEN1		= "\033[1;32m"
-	GREEN2		= "\033[0;32m"
-	YELLOW1		= "\033[1;33m"
-	YELLOW		= "\033[0;33m"
-	BLUE1		= "\033[1;34m"
-	BLUE2		= "\033[0;34m"
-	PURPLE1		= "\033[1;35m"
-	PURPLE2		= "\033[0;35m"
-	CYAN1		= "\033[1;36m"
-	CYAN2		= "\033[0;36m"
-	WHITE1		= "\033[1;37m"
-	WHITE2		= "\033[0;37m"
-	NOCOLOR		= "\033[0m"
-	*/
-	
 	// Print usage
     if ((strcmp(argv[1], "-h") == 0) || (argc < 2)) {
 		printf("\n    \033[1;36mUltros \033[1;35mMaximus\n    \033[0;32mhttps://gitub.com/redhate\033[0m\n");
@@ -502,4 +482,5 @@ int main(int argc, char *argv[]) {
     return 0;
     
 }
+
 
