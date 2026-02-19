@@ -13,12 +13,12 @@
 #include <sys/socket.h>
 #include <sys/select.h>
 
-
 #define MAX_MSG 512
 #define MAX_NAME 16
 
 // Window ctx handles
-WINDOW *chat_win, 
+WINDOW *head_win,
+       *chat_win,
        *input_win;
 
 // Socket var
@@ -125,7 +125,7 @@ void *receive_messages(void *arg) {
         time(&rawtime);
         
 		// Print the message to- and refresh the chat window
-		wprintw(chat_win, " recv) [%.24s] <%s>: %s\n", ctime(&rawtime), data->username, data->message);
+		wprintw(chat_win, "  recv) [%.24s] <%s>: %s\n", ctime(&rawtime), data->username, data->message);
 		box(chat_win, 0, 0);
 		wrefresh(chat_win);
         
@@ -133,49 +133,6 @@ void *receive_messages(void *arg) {
 
 	// return
     return NULL;
-    
-}
-
-// Setup ncurses window
-void init_ncurses() {
-	
-    // Init ncurses
-    initscr();
-    cbreak();
-    curs_set(0);
-    //noecho();
-    keypad(stdscr, TRUE);
-	
-	// Local vars
-    int height, width;
-    getmaxyx(stdscr, height, width);
-
-	// Window context creation
-    chat_win  = newwin(height - 3, width, 0, 0);
-    input_win = newwin(3, width, height - 3, 0);
-
-	if (has_colors() != FALSE) {
-		start_color();
-		init_pair(1, COLOR_CYAN,    COLOR_BLACK);
-		init_pair(2, COLOR_YELLOW,  COLOR_BLACK);
-		init_pair(3, COLOR_MAGENTA, COLOR_BLACK);
-		init_pair(4, COLOR_RED,     COLOR_BLACK);
-	}
-	
-	// Set scroll property to true
-    scrollok(chat_win, TRUE);
-    // Create a box around the input window
-    box(input_win, 0, 0);
-    
-    // Create a box around the input window
-    box(chat_win, 0, 0);
-	
-	//wbkgd(chat_win, COLOR_PAIR(1));
-	wbkgd(input_win, COLOR_PAIR(2));
-
-	// Refresh both chat and input windows
-    wrefresh(chat_win);
-    wrefresh(input_win);
     
 }
 
@@ -187,6 +144,81 @@ int client(int argc, char *argv[]) {
         printf("Usage: %s <server_ip> <port>\n", argv[0]);
         return 1;
     }
+
+	// Init ncurses
+    initscr();
+    cbreak();
+    curs_set(0);
+    keypad(stdscr, TRUE);
+	
+	// Local vars
+    int height, width;
+    getmaxyx(stdscr, height, width);
+
+	// Window context creation
+	head_win  = newwin(3, width, 0, 0);
+    chat_win  = newwin(height - 6, width, 3, 0);
+    input_win = newwin(3, width, height - 3, 0);
+
+	if (has_colors() != FALSE) {
+		start_color();
+		init_pair(1, COLOR_MAGENTA, COLOR_BLACK);
+		init_pair(2, COLOR_CYAN,    COLOR_BLACK);
+		init_pair(3, COLOR_GREEN,   COLOR_BLACK);
+		init_pair(4, COLOR_YELLOW,  COLOR_BLACK);
+	}
+	
+	// Set scroll property to true
+    scrollok(chat_win, TRUE);
+    
+    // Create a box around the head_win
+    box(head_win, 0, 0);
+    
+    // Create a box around the chat_win
+    box(chat_win, 0, 0);
+    
+    // Create a box around the input_win
+    box(input_win, 0, 0);
+	
+	wbkgd(head_win, COLOR_PAIR(1));
+	wbkgd(chat_win, COLOR_PAIR(2));
+	//wbkgd(input_win, COLOR_PAIR(3));
+
+	// Refresh both chat and input windows
+	wrefresh(head_win);
+    wrefresh(chat_win);
+    wrefresh(input_win);
+
+	// erase header window and print message then refresh
+	werase(head_win);
+	box(head_win, 0, 0);
+	mvwprintw(head_win, 1, 1, " %s ", argv[1]);
+	wrefresh(head_win);
+
+	// erase chat window and print message then refresh
+	werase(chat_win);
+	box(chat_win, 0, 0);
+	wrefresh(chat_win);
+	
+	// Erase the input window, replot the input window and refresh
+	werase(input_win);
+	box(input_win, 0, 0);
+	mvwprintw(input_win, 1, 1, " ");
+	wprintw(input_win, "Insert your user name: ");
+	wrefresh(input_win);
+
+	// Get the input from keyboard
+	char username[MAX_NAME];
+	wgetnstr(input_win, username, MAX_NAME - 1);
+	
+	// Terminate the name just incase it's not terminated
+	username[MAX_NAME-1]='\0';
+
+	// Erase and refresh the chat window
+	werase(chat_win);
+	box(chat_win, 0, 0);
+	wprintw(chat_win, "\n");
+	wrefresh(chat_win);
 
 	// Server info
     char *server_ip = argv[1];
@@ -204,44 +236,26 @@ int client(int argc, char *argv[]) {
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(port);
     inet_pton(AF_INET, server_ip, &server_addr.sin_addr);
-
+	
     // Connect to server
     if (connect(sockfd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
         perror("Connection failed");
         return 1;
     }
 
-	// Init ncurses
-    init_ncurses();
-
 	// Create receive thread
     pthread_t recv_thread;
     pthread_create(&recv_thread, NULL, receive_messages, NULL);
 
-	// erase chat window and print message then refresh
-	werase(chat_win);
-	box(chat_win, 0, 0);
-	wrefresh(chat_win);
-	
-	// Erase the input window, replot the input window and refresh
-	werase(input_win);
-	box(input_win, 0, 0);
-	mvwprintw(input_win, 1, 1, "> ");
-	wprintw(input_win, "Insert your user name: ");
-	wrefresh(input_win);
+	// Join message (comes from client not from server ...yet)
+	strcpy(chatData.username, username);
+	strcpy(chatData.message, "has joined!");
 
-	// Get the input from keyboard
-	char username[MAX_NAME];
-	wgetnstr(input_win, username, MAX_NAME - 1);
+	// XOR it
+	xor4x((unsigned char*)&chatData, MAX_MSG+MAX_NAME);
 	
-	// Terminate the name just incase it's not terminated
-	username[MAX_NAME-1]='\0';
-
-	// Erase and refresh the chat window
-	werase(chat_win);
-	box(chat_win, 0, 0);
-	wprintw(chat_win, "\n");
-	wrefresh(chat_win);
+	// Send message to socket
+	send(sockfd, (const void*)&chatData, sizeof(chat_data), 0);
 
 	// Main loop
     while (1) {
@@ -249,11 +263,19 @@ int client(int argc, char *argv[]) {
 		// Place the username into the structured data block
 		sprintf(chatData.username, "%s", username);
 		
+		// erase header window and print message then refresh
+		werase(head_win);
+		box(head_win, 0, 0);
+		mvwprintw(head_win, 1, 1, " %s ", argv[1]);
+		wrefresh(head_win);
+		
 		// Erase the input window, replot the input window and refresh
         werase(input_win);
         box(input_win, 0, 0);
-        mvwprintw(input_win, 1, 1, "> ");
+        mvwprintw(input_win, 1, 1, " ");
         wrefresh(input_win);
+		
+		// Refresh the chat window
 		box(chat_win, 0, 0);
 		wrefresh(chat_win);
 		
@@ -263,19 +285,15 @@ int client(int argc, char *argv[]) {
         //terminate the message data so it never overflows
 		chatData.message[MAX_MSG-1] = '\0';
 		
-		// Check for quit message
-        if (strcmp(chatData.message, "/quit") == 0) {
-            break;
-        }
         // Check for clear command
-        else if (strcmp(chatData.message, "/clear") == 0) {
+        if (strcmp(chatData.message, "/clear") == 0) {
 			werase(chat_win);
 			box(chat_win, 0, 0);
 			wprintw(chat_win, "\n");
 			wrefresh(chat_win);
 		}
 		// Check for quit message
-        else if (strcmp(chatData.message, "/nick") == 0) {
+        else if (strcmp(chatData.message, "/newnick") == 0) {
 			mvwprintw(input_win, 1, 1, "Insert new nickname: ");
 			wrefresh(input_win);
 			wgetnstr(input_win, username, MAX_NAME - 1);
@@ -284,20 +302,29 @@ int client(int argc, char *argv[]) {
         }
         // No commands? send the input
 		else {
+			// Check for quit message
+			if ((strcmp(chatData.message, "/exit") == 0) || (strcmp(chatData.message, "/quit") == 0)) {
+				// Join message (comes from client not from server ...yet)
+				strcpy(chatData.username, username);
+				strcpy(chatData.message, "has quit!");
+				// XOR it
+				xor4x((unsigned char*)&chatData, MAX_MSG+MAX_NAME);
+				// Send message to socket
+				send(sockfd, (const void*)&chatData, sizeof(chat_data), 0);
+				// break the loop
+				break;
+			}
 			// If the message is greater than 0
-			if (strlen(chatData.message) > 0) {
-				
+			else if (strlen(chatData.message) > 0) {
 				// Get the Time
 				time_t rawtime;
 				time(&rawtime);
-				
+				char *t_buf = ctime(&rawtime);
 				// Print the message to- and refresh the chat window
-				wprintw(chat_win, " send) [%.24s] <%s>: %s\n", ctime(&rawtime), chatData.username, chatData.message);
+				wprintw(chat_win, "  send) [%.8s] <%s>: %s\n", &t_buf[11], chatData.username, chatData.message);
 				wrefresh(chat_win);
-				
 				// xor it
 				xor4x((unsigned char*)&chatData, MAX_MSG+MAX_NAME);
-				
 				// Send message to socket
 				send(sockfd, (const void*)&chatData, sizeof(chat_data), 0);
 			}
@@ -365,7 +392,7 @@ int server(int argc, char *argv[]) {
     fdmax = listener;
 
 	// Print a message
-    printf("Server listening on port %d\n", port);
+    printf("\033[1;33mServer listening on port %d\033[0m\n", port);
 
 	// Loop the socket management code
     while (1) {
@@ -394,8 +421,11 @@ int server(int argc, char *argv[]) {
                         FD_SET(newfd, &master);
                         if (newfd > fdmax)
                             fdmax = newfd;
-
-                        printf("New connection: %s\n", inet_ntoa(client_addr.sin_addr));
+						
+						// Print message
+                        printf("\033[1;32mClient connected: %s\033[0m\n", inet_ntoa(client_addr.sin_addr));
+						// Send message to socket
+						// send(newfd, (const void*)&chatData, sizeof(chat_data), 0);
                     }
 
                 } 
@@ -407,7 +437,11 @@ int server(int argc, char *argv[]) {
                     if (nbytes <= 0) {
                         close(i);
                         FD_CLR(i, &master);
-                        printf("Client disconnected\n");
+                        
+                        // Print message
+                        printf("\033[1;31mClient disconnected: %s\033[0m\n", inet_ntoa(client_addr.sin_addr));
+                        // Send message to socket
+                        // send(i, (const void*)&chatData, sizeof(chat_data), 0);
                     } 
                     else {
 						int j;
@@ -428,10 +462,32 @@ int server(int argc, char *argv[]) {
 // Main
 int main(int argc, char *argv[]) {
 	
+	/*
+	BLACK1		= "\033[1;30m"
+	BLACK2		= "\033[0;30m"
+	RED1		= "\033[1;31m"
+	RED2		= "\033[0;31m"
+	GREEN1		= "\033[1;32m"
+	GREEN2		= "\033[0;32m"
+	YELLOW1		= "\033[1;33m"
+	YELLOW		= "\033[0;33m"
+	BLUE1		= "\033[1;34m"
+	BLUE2		= "\033[0;34m"
+	PURPLE1		= "\033[1;35m"
+	PURPLE2		= "\033[0;35m"
+	CYAN1		= "\033[1;36m"
+	CYAN2		= "\033[0;36m"
+	WHITE1		= "\033[1;37m"
+	WHITE2		= "\033[0;37m"
+	NOCOLOR		= "\033[0m"
+	*/
+	
 	// Print usage
-    if (argc < 2) {
-		printf("Server: %s <listener_port>\n", argv[0]);
-        printf("Client: %s <server_ip> <port>\n", argv[0]);
+    if ((strcmp(argv[1], "-h") == 0) || (argc < 2)) {
+		printf("\n    \033[1;36mUltros \033[1;35mMaximus\n    \033[0;32mhttps://gitub.com/redhate\033[0m\n");
+		printf("\n    \033[1;33mUsage\033[0m:\n");
+		printf("        \033[1;36mServer\033[0m:\n            %s <listener_port>\n", argv[0]);
+        printf("        \033[1;35mClient\033[0m:\n            %s <server_ip> <port>\n\n", argv[0]);
         return 1;
     }
 
