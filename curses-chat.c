@@ -87,10 +87,10 @@ int xor4x(unsigned char *buffer, unsigned int size) {
 	// loop through keys
 	int i;
 	for (i = 0; i < 3; i++) {
-		// evens, i know this isnt the proper way i should use %)
+		// odds
 		if (i & 1)
 			direction = XOR_FORWARD;
-		// odds, i know this isnt the proper way i should use %)
+		// evens
 		if (!(i & 1))
 			direction = XOR_BACKWARD;
 		//xor it in a direction
