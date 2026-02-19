@@ -433,10 +433,10 @@ int server(int argc, char *argv[]) {
                 // Recv and send data
                 else {
 					
-					// Receive data from clients
-                    char buffer[sizeof(chat_data)];
+					// Message buffer
+                    unsigned char buffer[sizeof(chat_data)];
                     
-                    // Check if client has disconnected
+                    // Recv a message and check if client has disconnected
                     int nbytes = recv(i, buffer, sizeof(buffer), 0);
                     if (nbytes <= 0) {
                         close(i);
@@ -505,4 +505,7 @@ int main(int argc, char *argv[]) {
     return 0;
     
 }
+
+
+
 
