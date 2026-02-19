@@ -26,10 +26,10 @@ int sockfd;
 
 // chat data type declaration
 typedef struct chat_data {
-	// Create a message buffer for input
-    char message[MAX_MSG];
     // Create a buffer for user name
     char username[MAX_NAME];
+	// Create a message buffer for input
+    char message[MAX_MSG];
 }chat_data;
 
 // chat data var declaration
@@ -80,7 +80,6 @@ int xor4x(unsigned char *buffer, unsigned int size) {
 		}
 	}
 	
-	
 	// Set the direction to 0
 	int direction = 0;
 	
@@ -115,17 +114,19 @@ void *receive_messages(void *arg) {
         }
 		
 		// XOR it
-		xor4x((unsigned char*)&buffer, MAX_MSG+MAX_NAME);
+		xor4x((unsigned char*)&buffer, sizeof(chat_data));
 		
 		// Cast it with a pointer
 		chat_data *data = (chat_data*)buffer;
         
         // Get the Time
-        time_t rawtime;
-        time(&rawtime);
-        
+		// Get the Time
+		time_t rawtime;
+		time(&rawtime);
+		char *t_buf = ctime(&rawtime);
+
 		// Print the message to- and refresh the chat window
-		wprintw(chat_win, "  recv) [%.24s] <%s>: %s\n", ctime(&rawtime), data->username, data->message);
+		wprintw(chat_win, "  recv) [%.8s] <%s>: %s\n", &t_buf[11], data->username, data->message);
 		box(chat_win, 0, 0);
 		wrefresh(chat_win);
         
@@ -170,6 +171,7 @@ int client(int argc, char *argv[]) {
 	
 	// Set scroll property to true
     scrollok(chat_win, TRUE);
+    scrollok(input_win, TRUE);
     
     // Create a box around the head_win
     box(head_win, 0, 0);
@@ -252,7 +254,7 @@ int client(int argc, char *argv[]) {
 	strcpy(chatData.message, "has joined!");
 
 	// XOR it
-	xor4x((unsigned char*)&chatData, MAX_MSG+MAX_NAME);
+	xor4x((unsigned char*)&chatData, sizeof(chat_data));
 	
 	// Send message to socket
 	send(sockfd, (const void*)&chatData, sizeof(chat_data), 0);
@@ -308,7 +310,7 @@ int client(int argc, char *argv[]) {
 				strcpy(chatData.username, username);
 				strcpy(chatData.message, "has quit!");
 				// XOR it
-				xor4x((unsigned char*)&chatData, MAX_MSG+MAX_NAME);
+				xor4x((unsigned char*)&chatData,sizeof(chat_data));
 				// Send message to socket
 				send(sockfd, (const void*)&chatData, sizeof(chat_data), 0);
 				// break the loop
@@ -324,7 +326,7 @@ int client(int argc, char *argv[]) {
 				wprintw(chat_win, "  send) [%.8s] <%s>: %s\n", &t_buf[11], chatData.username, chatData.message);
 				wrefresh(chat_win);
 				// xor it
-				xor4x((unsigned char*)&chatData, MAX_MSG+MAX_NAME);
+				xor4x((unsigned char*)&chatData, sizeof(chat_data));
 				// Send message to socket
 				send(sockfd, (const void*)&chatData, sizeof(chat_data), 0);
 			}
@@ -505,7 +507,4 @@ int main(int argc, char *argv[]) {
     return 0;
     
 }
-
-
-
 
