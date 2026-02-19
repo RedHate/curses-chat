@@ -386,7 +386,7 @@ int server(int argc, char *argv[]) {
         exit(1);
     }
 
-	// Zero some bytes, set and set fdmax
+	// Zero and set
     FD_ZERO(&master);
     FD_SET(listener, &master);
     fdmax = listener;
@@ -399,6 +399,7 @@ int server(int argc, char *argv[]) {
 		
         read_fds = master;
 
+		// select the socket
         if (select(fdmax + 1, &read_fds, NULL, NULL, NULL) == -1) {
             perror("select");
             exit(1);
@@ -414,9 +415,11 @@ int server(int argc, char *argv[]) {
 				// If i is the listener socket
                 if (i == listener) {
                     
+                    // Accept a new connection
                     addrlen = sizeof(client_addr);
                     newfd = accept(listener, (struct sockaddr*)&client_addr, &addrlen);
 
+					// Set the socket
                     if (newfd != -1) {
                         FD_SET(newfd, &master);
                         if (newfd > fdmax)
@@ -427,19 +430,23 @@ int server(int argc, char *argv[]) {
                     }
 
                 } 
+                // Recv and send data
                 else {
 					
+					// Receive data from clients
                     char buffer[sizeof(chat_data)];
+                    
+                    // Check if client has disconnected
                     int nbytes = recv(i, buffer, sizeof(buffer), 0);
-
                     if (nbytes <= 0) {
                         close(i);
                         FD_CLR(i, &master);
                         
                         // Print message
                         printf("\033[1;31mClient disconnected: %s\033[0m\n", inet_ntoa(client_addr.sin_addr));
-                    } 
+                    }
                     else {
+						// Send received message to all live socket connections 
 						int j;
                         for (j = 0; j <= fdmax; j++) {
                             if (FD_ISSET(j, &master) && j != listener && j != i) {
@@ -457,6 +464,26 @@ int server(int argc, char *argv[]) {
 
 // Main
 int main(int argc, char *argv[]) {
+	
+	/*
+	BLACK1		= "\033[1;30m"
+	BLACK2		= "\033[0;30m"
+	RED1		= "\033[1;31m"
+	RED2		= "\033[0;31m"
+	GREEN1		= "\033[1;32m"
+	GREEN2		= "\033[0;32m"
+	YELLOW1		= "\033[1;33m"
+	YELLOW		= "\033[0;33m"
+	BLUE1		= "\033[1;34m"
+	BLUE2		= "\033[0;34m"
+	PURPLE1		= "\033[1;35m"
+	PURPLE2		= "\033[0;35m"
+	CYAN1		= "\033[1;36m"
+	CYAN2		= "\033[0;36m"
+	WHITE1		= "\033[1;37m"
+	WHITE2		= "\033[0;37m"
+	NOCOLOR		= "\033[0m"
+	*/
 	
 	// Print usage
     if ((strcmp(argv[1], "-h") == 0) || (argc < 2)) {
@@ -478,6 +505,4 @@ int main(int argc, char *argv[]) {
     return 0;
     
 }
-
-
 
