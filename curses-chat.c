@@ -13,6 +13,7 @@
 #include <sys/socket.h>
 #include <sys/select.h>
 
+
 #define MAX_MSG 512
 #define MAX_NAME 16
 
@@ -254,8 +255,6 @@ int client(int argc, char *argv[]) {
 	wprintw(chat_win, " You are connected!\n");
 	box(chat_win, 0, 0);
 	wrefresh(chat_win);
-	
-	sleep(1);
 
 	// Join message (comes from client not from server ...yet)
 	strcpy(chatData.username, username);
@@ -476,23 +475,23 @@ int server(int argc, char *argv[]) {
 int main(int argc, char *argv[]) {
 	
 	/*
-	BLACK1		= "\033[1;30m"
-	BLACK2		= "\033[0;30m"
-	RED1		= "\033[1;31m"
-	RED2		= "\033[0;31m"
-	GREEN1		= "\033[1;32m"
-	GREEN2		= "\033[0;32m"
-	YELLOW1		= "\033[1;33m"
-	YELLOW		= "\033[0;33m"
-	BLUE1		= "\033[1;34m"
-	BLUE2		= "\033[0;34m"
-	PURPLE1		= "\033[1;35m"
-	PURPLE2		= "\033[0;35m"
-	CYAN1		= "\033[1;36m"
-	CYAN2		= "\033[0;36m"
-	WHITE1		= "\033[1;37m"
-	WHITE2		= "\033[0;37m"
-	NOCOLOR		= "\033[0m"
+		BLACK1		= "\033[1;30m"
+		BLACK2		= "\033[0;30m"
+		RED1		= "\033[1;31m"
+		RED2		= "\033[0;31m"
+		GREEN1		= "\033[1;32m"
+		GREEN2		= "\033[0;32m"
+		YELLOW1		= "\033[1;33m"
+		YELLOW		= "\033[0;33m"
+		BLUE1		= "\033[1;34m"
+		BLUE2		= "\033[0;34m"
+		PURPLE1		= "\033[1;35m"
+		PURPLE2		= "\033[0;35m"
+		CYAN1		= "\033[1;36m"
+		CYAN2		= "\033[0;36m"
+		WHITE1		= "\033[1;37m"
+		WHITE2		= "\033[0;37m"
+		NOCOLOR		= "\033[0m"
 	*/
 	
     // Print usage
