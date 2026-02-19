@@ -21,9 +21,6 @@ WINDOW *head_win,
        *chat_win,
        *input_win;
 
-// Socket var
-int sockfd;
-
 // chat data type declaration
 typedef struct chat_data {
     // Create a buffer for user name
@@ -36,7 +33,7 @@ typedef struct chat_data {
 chat_data chatData;
 
 // Should suffice with a random key
-int xor4x(unsigned char *buffer, unsigned int size) {
+void xor4x(unsigned char *buffer, unsigned int size) {
 	
 	// XOR related definitions
 	#define XOR_KEY_LEN  20
@@ -101,6 +98,7 @@ int xor4x(unsigned char *buffer, unsigned int size) {
 // Thread to receive messages
 void *receive_messages(void *arg) {
     
+    int sockfd = *(int*)arg;      // Used for socket
     // Local vars
     char buffer[sizeof(chat_data)];
 
@@ -182,9 +180,10 @@ int client(int argc, char *argv[]) {
     // Create a box around the input_win
     box(input_win, 0, 0);
 	
+	// Set the window colors
 	wbkgd(head_win, COLOR_PAIR(1));
-	wbkgd(chat_win, COLOR_PAIR(2));
-	//wbkgd(input_win, COLOR_PAIR(3));
+	//wbkgd(chat_win, COLOR_PAIR(2));
+	wbkgd(input_win, COLOR_PAIR(2));
 
 	// Refresh both chat and input windows
 	wrefresh(head_win);
@@ -226,8 +225,8 @@ int client(int argc, char *argv[]) {
     char *server_ip = argv[1];
     int port = atoi(argv[2]);
 
-    // Create socket
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+	// Create socket
+	int sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) {
         perror("Socket failed");
         return 1;
@@ -247,7 +246,16 @@ int client(int argc, char *argv[]) {
 
 	// Create receive thread
     pthread_t recv_thread;
-    pthread_create(&recv_thread, NULL, receive_messages, NULL);
+    pthread_create(&recv_thread, NULL, receive_messages, &sockfd);
+
+	// Erase and refresh the chat window
+	werase(chat_win);
+	mvwprintw(chat_win, 1, 0, " ");
+	wprintw(chat_win, " You are connected!\n");
+	box(chat_win, 0, 0);
+	wrefresh(chat_win);
+	
+	sleep(1);
 
 	// Join message (comes from client not from server ...yet)
 	strcpy(chatData.username, username);
@@ -487,8 +495,8 @@ int main(int argc, char *argv[]) {
 	NOCOLOR		= "\033[0m"
 	*/
 	
-	// Print usage
-    if ((strcmp(argv[1], "-h") == 0) || (argc < 2)) {
+    // Print usage
+    if ((argc < 2) || (strcmp(argv[1], "-h") == 0)) {
 		printf("\n    \033[1;36mUltros \033[1;35mMaximus\n    \033[0;32mhttps://gitub.com/redhate\033[0m\n");
 		printf("\n    \033[1;33mUsage\033[0m:\n");
 		printf("        \033[1;36mServer\033[0m:\n            %s <listener_port>\n", argv[0]);
@@ -497,10 +505,10 @@ int main(int argc, char *argv[]) {
     }
 
 	// If argc is 2, it's server mode
-	if (argc == 2)
+	else if (argc == 2)
 		server(argc, argv);
 	// If argc == 3, it's client mode
-	if (argc == 3)
+	else if (argc == 3)
 		client(argc, argv);
     
     // Exit clean
