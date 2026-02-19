@@ -424,8 +424,6 @@ int server(int argc, char *argv[]) {
 						
 						// Print message
                         printf("\033[1;32mClient connected: %s\033[0m\n", inet_ntoa(client_addr.sin_addr));
-						// Send message to socket
-						// send(newfd, (const void*)&chatData, sizeof(chat_data), 0);
                     }
 
                 } 
@@ -440,8 +438,6 @@ int server(int argc, char *argv[]) {
                         
                         // Print message
                         printf("\033[1;31mClient disconnected: %s\033[0m\n", inet_ntoa(client_addr.sin_addr));
-                        // Send message to socket
-                        // send(i, (const void*)&chatData, sizeof(chat_data), 0);
                     } 
                     else {
 						int j;
@@ -482,5 +478,6 @@ int main(int argc, char *argv[]) {
     return 0;
     
 }
+
 
 
