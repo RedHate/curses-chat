@@ -1,6 +1,6 @@
 
 all:
-	@gcc curses-chat.c -o chat -lncurses -lz
+	@gcc -std=c99 -Wall -pedantic  curses-chat.c -o chat -lncurses -lz
 	@strip -s chat
 
 clean:

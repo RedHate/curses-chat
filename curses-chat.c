@@ -13,7 +13,6 @@
 #include <sys/socket.h>
 #include <sys/select.h>
 
-
 #define MAX_MSG 512
 #define MAX_NAME 16
 
@@ -33,50 +32,97 @@ typedef struct chat_data {
 // chat data var declaration
 chat_data chatData;
 
-// Should suffice with a random key
-void xor4x(unsigned char *buffer, unsigned int size) {
+#include <stdio.h>
+#include <string.h>
+
+// XOR related definitions
+#define XOR_KEY_LEN  20
+#define XOR_FORWARD  0
+#define XOR_BACKWARD 1
+#define KEY_ARRAY    4
+
+// XOR keys
+unsigned char keys[KEY_ARRAY][XOR_KEY_LEN] = { 
+	{ 0xec, 0x1d, 0x53, 0xdf, 0xc3, 0x23, 0x28, 0xfa, 0xe0, 0xfe, 0x95, 0xc9, 0x51, 0x2a, 0x65, 0x63, 0xe6, 0xb4, 0xf9, 0x3a },
+	{ 0x67, 0x10, 0xca, 0x9c, 0x54, 0x66, 0x13, 0xb8, 0x50, 0x67, 0x05, 0x99, 0xa0, 0xaa, 0x53, 0x16, 0xec, 0x5e, 0xcc, 0x3c },
+	{ 0x04, 0xf0, 0x24, 0x97, 0x37, 0x23, 0x05, 0x7b, 0x06, 0xe7, 0x0d, 0x48, 0xf2, 0x41, 0x6b, 0xca, 0x55, 0xad, 0x9f, 0xf6 },
+	{ 0x87, 0xe9, 0x0a, 0x8c, 0xae, 0x4e, 0x5c, 0xb3, 0xa9, 0x25, 0x7e, 0xa5, 0x34, 0x36, 0x91, 0xf3, 0xdd, 0x1e, 0x1c, 0xc8 },
+};
+
+// Print the key info
+void print_keys() {
 	
-	// XOR related definitions
-	#define XOR_KEY_LEN  20
-	#define XOR_FORWARD  0
-	#define XOR_BACKWARD 1
-	
-	// XOR keys
-	unsigned char keys[4][XOR_KEY_LEN] = { 
-		{ 0xec, 0x1d, 0x53, 0xdf, 0xc3, 0x23, 0x28, 0xfa, 0xe0, 0xfe, 0x95, 0xc9, 0x51, 0x2a, 0x65, 0x63, 0xe6, 0xb4, 0xf9, 0x3a },
-		{ 0x67, 0x10, 0xca, 0x9c, 0x54, 0x66, 0x13, 0xb8, 0x50, 0x67, 0x05, 0x99, 0xa0, 0xaa, 0x53, 0x16, 0xec, 0x5e, 0xcc, 0x3c },
-		{ 0x04, 0xf0, 0x24, 0x97, 0x37, 0x23, 0x05, 0x7b, 0x06, 0xe7, 0x0d, 0x48, 0xf2, 0x41, 0x6b, 0xca, 0x55, 0xad, 0x9f, 0xf6 },
-		{ 0x87, 0xe9, 0x0a, 0x8c, 0xae, 0x4e, 0x5c, 0xb3, 0xa9, 0x25, 0x7e, 0xa5, 0x34, 0x36, 0x91, 0xf3, 0xdd, 0x1e, 0x1c, 0xc8 },
-	};
-	
-	// Directional XOR fnc (doesn't need to be global, even if that's how you think it should be done. i scope my code.)
-	void xor_directional(unsigned char *buffer, unsigned int size, unsigned char *key, int direction) {
-		// Used for xor position
-		int keypos = 0;
-		// XOR forward / backward
-		if (direction == XOR_FORWARD) {
-			// Lazy XOR
-			for (unsigned int i = 0; i < size; i++) {
-				// XOR shift the data according to the key and its relative read position
-				buffer[i] = (unsigned char)((unsigned char)key[keypos] ^ (unsigned char)buffer[i]);
-				// Move the key position
-				keypos++;
-				// If the key position is greater than the key length reset it
-				if (keypos == XOR_KEY_LEN) keypos = 0;
-			}
+	// Loop through the keys
+	int i, j;
+	for (i = 0; i < KEY_ARRAY; i++) {
+		// Loop through key length
+		for (j = 0; j < XOR_KEY_LEN; j++) {
+			// print the bytes
+			printf("0x%02hX, ", keys[i][j]);
 		}
-		else if (direction == XOR_BACKWARD) {
-			// Lazy XOR
-			for (unsigned int i = size; i > 0; i--) {
-				// XOR shift the data according to the key and its relative read position
-				buffer[i] = (unsigned char)((unsigned char)key[keypos] ^ (unsigned char)buffer[i]);
-				// Move the key position
-				keypos++;
-				// If the key position is greater than the key length reset it
-				if (keypos == XOR_KEY_LEN) keypos = 0;
-			}
+		// print a new line for each key
+		printf("\n");
+	}
+	
+}
+
+// XOR the keyset with a passphrase
+void xor_keys(unsigned char keys[KEY_ARRAY][XOR_KEY_LEN], const char *password){
+	
+	// Set key position to 0
+	int keypos = 0;
+	
+	// Loop through the keys
+	int i, j;
+	for (i = 0; i < KEY_ARRAY; i++) {
+		// Loop through selected key
+		for (j = 0; j < XOR_KEY_LEN; j++) {
+			// XOR the key
+			keys[i][j] = (unsigned char)((unsigned char)password[keypos] ^ (unsigned char)keys[i][j]);
+			// Move the key position
+			keypos++;
+			// If the key position is greater than the key length reset it
+			if (keypos == strlen(password)) keypos = 0;
 		}
 	}
+	
+}
+
+// Directional XOR fnc (doesn't need to be global, even if that's how you think it should be done. i scope my code.)
+void xor_directional(unsigned char *buffer, unsigned int size, unsigned char *key, int direction) {
+
+	// XOR forward / backward
+	if (direction == XOR_FORWARD) {
+		int keypos = 0;
+		// Lazy XOR
+		unsigned int i;
+		for (i = 0; i < size; i++) {
+			// XOR shift the data according to the key and its relative read position
+			buffer[i] = (unsigned char)((unsigned char)key[keypos] ^ (unsigned char)buffer[i]);
+			// Move the key position
+			keypos++;
+			// If the key position is greater than the key length reset it
+			if (keypos == XOR_KEY_LEN) keypos = 0;
+		}
+	}
+	else if (direction == XOR_BACKWARD) {
+		int keypos = 0;
+		// Lazy XOR
+		unsigned int i;
+		for (i = size; i > 0; i--) {
+			// XOR shift the data according to the key and its relative read position
+			buffer[i] = (unsigned char)((unsigned char)key[keypos] ^ (unsigned char)buffer[i]);
+			// Move the key position
+			keypos++;
+			// If the key position is greater than the key length reset it
+			if (keypos == XOR_KEY_LEN) keypos = 0;
+		}
+	}
+	
+}
+
+// Should suffice with a random key
+void xor4x(unsigned char *buffer, unsigned int size) {
 	
 	// Set the direction to 0
 	int direction = 0;
@@ -96,10 +142,28 @@ void xor4x(unsigned char *buffer, unsigned int size) {
 	
 }
 
+void reverse(unsigned char *buffer, unsigned int size) {
+	
+	// do it in stack (may smash if data is larger than SP alloc)
+	unsigned char new_buf[size];
+	
+	// first pass copy it into a buffer in reverse
+	unsigned int i;
+	for (i = 0; i < size; i++) {
+		new_buf[i] = buffer[size-1-i];
+	}
+	// re-assign the original buffer
+	for (i = 0; i < size; i++) {
+		buffer[i] = new_buf[i];
+	}
+	
+}
+
 // Thread to receive messages
 void *receive_messages(void *arg) {
     
     int sockfd = *(int*)arg;      // Used for socket
+    
     // Local vars
     char buffer[sizeof(chat_data)];
 
@@ -115,6 +179,9 @@ void *receive_messages(void *arg) {
 		// XOR it
 		xor4x((unsigned char*)&buffer, sizeof(chat_data));
 		
+		// Reverse the bytes of the structured data
+		reverse((unsigned char*)&buffer, sizeof(chat_data));
+		
 		// Cast it with a pointer
 		chat_data *data = (chat_data*)buffer;
         
@@ -128,6 +195,7 @@ void *receive_messages(void *arg) {
 		wprintw(chat_win, "  recv) [%.8s] <%s>: %s\n", &t_buf[11], data->username, data->message);
 		box(chat_win, 0, 0);
 		wrefresh(chat_win);
+
         
     }
 
@@ -160,8 +228,11 @@ int client(int argc, char *argv[]) {
     chat_win  = newwin(height - 6, width, 3, 0);
     input_win = newwin(3, width, height - 3, 0);
 
+	// Does the terminal support colors?
 	if (has_colors() != FALSE) {
+		// Start ncurses color
 		start_color();
+		// Initialize the color pairs used in the program
 		init_pair(1, COLOR_MAGENTA, COLOR_BLACK);
 		init_pair(2, COLOR_CYAN,    COLOR_BLACK);
 		init_pair(3, COLOR_GREEN,   COLOR_BLACK);
@@ -216,6 +287,18 @@ int client(int argc, char *argv[]) {
 	// Terminate the name just incase it's not terminated
 	username[MAX_NAME-1]='\0';
 
+	// Erase the input window, replot the input window and refresh
+	werase(input_win);
+	box(input_win, 0, 0);
+	mvwprintw(input_win, 1, 1, " ");
+	wprintw(input_win, "Insert your key: ");
+	wrefresh(input_win);
+	
+	// XOR the default keys (generate new ones based on password)
+	char password[32];
+	wgetnstr(input_win, password, 32);
+	xor_keys(keys, password);
+
 	// Erase and refresh the chat window
 	werase(chat_win);
 	box(chat_win, 0, 0);
@@ -259,13 +342,17 @@ int client(int argc, char *argv[]) {
 	// Join message (comes from client not from server ...yet)
 	strcpy(chatData.username, username);
 	strcpy(chatData.message, "has joined!");
-
+	// Reverse the bytes of the structured data
+	reverse((unsigned char*)&chatData, sizeof(chat_data));
 	// XOR it
 	xor4x((unsigned char*)&chatData, sizeof(chat_data));
-	
 	// Send message to socket
 	send(sockfd, (const void*)&chatData, sizeof(chat_data), 0);
-
+	
+	// Set the the data block again (was mutated by previous xor)
+	strcpy(chatData.username, username);
+	strcpy(chatData.message, "");
+	
 	// Main loop
     while (1) {
 		
@@ -332,6 +419,8 @@ int client(int argc, char *argv[]) {
 				// Print the message to- and refresh the chat window
 				wprintw(chat_win, "  send) [%.8s] <%s>: %s\n", &t_buf[11], chatData.username, chatData.message);
 				wrefresh(chat_win);
+				// Reverse the bytes of the structured data
+				reverse((unsigned char*)&chatData, sizeof(chat_data));
 				// xor it
 				xor4x((unsigned char*)&chatData, sizeof(chat_data));
 				// Send message to socket
